@@ -1,0 +1,5 @@
+.git
+.DS_Store
+.zig-cache/
+zig-out/
+.pijul/

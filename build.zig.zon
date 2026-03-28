@@ -1,0 +1,13 @@
+.{
+    .name = .zkit,
+    .version = "0.0.0",
+    .fingerprint = 0x8213deee3bac1d1e,
+    .minimum_zig_version = "0.16.0-dev.3006+94355f192",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "LICENSE",
+    },
+}
