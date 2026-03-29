@@ -3,6 +3,8 @@ const StaticBitSet = std.StaticBitSet;
 const DynamicBitSet = std.DynamicBitSet;
 const Allocator = std.mem.Allocator;
 
+/// Trial division primality test.
+/// Time: O(sqrt(n)). Memory: O(1).
 pub fn isPrime(n: u64) bool {
     if (n < 2) return false;
     if (n == 2) return true;
@@ -15,41 +17,51 @@ pub fn isPrime(n: u64) bool {
     return true;
 }
 
-pub fn comptimeSieve(comptime limit: usize) *const fn(u64) bool {
-    @setEvalBranchQuota(limit);
-    const S = struct {
-        const primeBitSet = blk: {
-            var bitSet = StaticBitSet(limit / 2).initFull();
-
-            // We only store odd numbers, as even numbers are not prime, with
-            // the exception of 2.
-            var i: usize = 3;
-            while (i * i < limit) : (i += 2) {
-                if (bitSet.isSet(i / 2 - 1)) {
-                    var j = i * i;
-                    while (j < limit) : (j += 2 * i) {
-                        bitSet.unset(j / 2 - 1);
-                    }
-                }
-            }
-            break :blk bitSet;
-        };
-        fn isPrime(n: u64) bool {
-            if (n > limit) @panic("n exceeds comptimeSieve limit");
-            return n >= 2 and (n == 2 or (@rem(n, 2) == 1 and primeBitSet.isSet(n / 2 - 1)));
-        }
-    };
-    return S.isPrime;
-}
-
+/// Sieve of Eratosthenes for prime checking.
+/// Memory: O(limit) bits.
 pub const Sieve = struct {
     bitSet: DynamicBitSet,
     limit: usize,
 
+    /// Time: O(n * ln(ln(n))) where n = limit. Memory: O(n) bits.
     pub fn init(allocator: Allocator, limit: usize) !Sieve {
         var bitSet = try DynamicBitSet.initFull(allocator, limit / 2);
         errdefer bitSet.deinit();
+        mark(&bitSet, limit);
+        return .{ .bitSet = bitSet, .limit = limit };
+    }
 
+    pub fn deinit(self: *Sieve) void {
+        self.bitSet.deinit();
+    }
+
+    /// Time: O(1).
+    pub fn isPrime(self: *const Sieve, n: usize) bool {
+        std.debug.assert(n < self.limit);
+        return check(&self.bitSet, n);
+    }
+
+    /// Compile-time sieve. The returned function checks primality in O(1).
+    /// Memory: O(limit) bits, embedded in the binary.
+    pub fn comptime_(comptime limit: usize) *const fn(u64) bool {
+        @setEvalBranchQuota(limit);
+        const S = struct {
+            const primeBitSet = blk: {
+                var bitSet = StaticBitSet(limit / 2).initFull();
+                mark(&bitSet, limit);
+                break :blk bitSet;
+            };
+            fn isPrime(n: u64) bool {
+                if (n > limit) @panic("n exceeds comptime Sieve limit");
+                return check(&primeBitSet, @intCast(n));
+            }
+        };
+        return S.isPrime;
+    }
+
+    // We only store odd numbers, as even numbers are not prime, with
+    // the exception of 2.
+    fn mark(bitSet: anytype, limit: usize) void {
         var i: usize = 3;
         while (i * i < limit) : (i += 2) {
             if (bitSet.isSet(i / 2 - 1)) {
@@ -59,16 +71,10 @@ pub const Sieve = struct {
                 }
             }
         }
-        return .{ .bitSet = bitSet, .limit = limit };
     }
 
-    pub fn deinit(self: *Sieve) void {
-        self.bitSet.deinit();
-    }
-
-    pub fn isPrime(self: *const Sieve, n: usize) bool {
-        std.debug.assert(n < self.limit);
-        return n >= 2 and (n == 2 or (n % 2 == 1 and self.bitSet.isSet(n / 2 - 1)));
+    fn check(bitSet: anytype, n: usize) bool {
+        return n >= 2 and (n == 2 or (n % 2 == 1 and bitSet.isSet(n / 2 - 1)));
     }
 };
 
@@ -107,8 +113,8 @@ test Sieve {
     }
 }
 
-test comptimeSieve {
-    const checkPrime = comptimeSieve(200);
+test "Sieve.comptime_" {
+    const sieveIsPrime = Sieve.comptime_(200);
 
     const expected_primes = [_]usize{
         2,   3,   5,   7,   11,  13,  17,  19,  23,  29,
@@ -118,13 +124,13 @@ test comptimeSieve {
         179, 181, 191, 193, 197, 199,
     };
     for (expected_primes) |p| {
-        try std.testing.expect(checkPrime(p));
+        try std.testing.expect(sieveIsPrime(p));
     }
 
     for (0..200) |n| {
         const expected = for (expected_primes) |p| {
             if (p == n) break true;
         } else false;
-        try std.testing.expectEqual(expected, checkPrime(n));
+        try std.testing.expectEqual(expected, sieveIsPrime(n));
     }
 }
