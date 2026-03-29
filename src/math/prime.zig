@@ -1,4 +1,5 @@
 const std = @import("std");
+const StaticBitSet = std.StaticBitSet;
 const Allocator = std.mem.Allocator;
 
 pub fn isPrime(n: u64) bool {
@@ -11,6 +12,24 @@ pub fn isPrime(n: u64) bool {
         if (n % i == 0) return false;
     }
     return true;
+}
+
+pub fn comptimeSieve(comptime limit: usize) StaticBitSet(limit) {
+    var bitSet = StaticBitSet(limit).initFull();
+
+    if (limit > 0) bitSet.unset(0);
+    if (limit > 1) bitSet.unset(1);
+
+    var i: usize = 2;
+    while (i * i < limit) : (i += 1) {
+        if (bitSet.isSet(i)) {
+            var j = i * i;
+            while (j < limit) : (j += i) {
+                bitSet.unset(j);
+            }
+        }
+    }
+    return bitSet;
 }
 
 pub fn sieve(allocator: Allocator, limit: usize) ![]bool {
@@ -57,4 +76,17 @@ test sieve {
     try std.testing.expect(!table[1]);
     try std.testing.expect(!table[4]);
     try std.testing.expect(!table[9]);
+}
+
+test comptimeSieve {
+    const table = comptimeSieve(20);
+
+    const expected_primes = [_]usize{ 2, 3, 5, 7, 11, 13, 17, 19 };
+    for (expected_primes) |p| {
+        try std.testing.expect(table.isSet(p));
+    }
+    try std.testing.expect(!table.isSet(0));
+    try std.testing.expect(!table.isSet(1));
+    try std.testing.expect(!table.isSet(4));
+    try std.testing.expect(!table.isSet(9));
 }
