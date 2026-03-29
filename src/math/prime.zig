@@ -76,6 +76,27 @@ pub const Sieve = struct {
     fn check(bitSet: anytype, n: usize) bool {
         return n >= 2 and (n == 2 or (n % 2 == 1 and bitSet.isSet(n / 2 - 1)));
     }
+
+    pub const Iterator = struct {
+        inner: DynamicBitSet.Iterator(.{}),
+        limit: usize,
+        yielded_two: bool = false,
+
+        pub fn next(self: *Iterator) ?u64 {
+            if (!self.yielded_two) {
+                self.yielded_two = true;
+                return 2;
+            }
+            const bit_index = self.inner.next() orelse return null;
+            const prime = bit_index * 2 + 3;
+            if (prime >= self.limit) return null;
+            return prime;
+        }
+    };
+
+    pub fn iterator(self: *const Sieve) Iterator {
+        return .{ .inner = self.bitSet.iterator(.{}), .limit = self.limit };
+    }
 };
 
 test isPrime {
@@ -111,6 +132,26 @@ test Sieve {
         } else false;
         try std.testing.expectEqual(expected, s.isPrime(n));
     }
+}
+
+test "Sieve.Iterator" {
+    const allocator = std.testing.allocator;
+    var s = try Sieve.init(allocator, 200);
+    defer s.deinit();
+
+    const expected_primes = [_]u64{
+        2,   3,   5,   7,   11,  13,  17,  19,  23,  29,
+        31,  37,  41,  43,  47,  53,  59,  61,  67,  71,
+        73,  79,  83,  89,  97,  101, 103, 107, 109, 113,
+        127, 131, 137, 139, 149, 151, 157, 163, 167, 173,
+        179, 181, 191, 193, 197, 199,
+    };
+
+    var it = s.iterator();
+    for (expected_primes) |expected| {
+        try std.testing.expectEqual(expected, it.next());
+    }
+    try std.testing.expectEqual(null, it.next());
 }
 
 test "Sieve.comptime_" {
