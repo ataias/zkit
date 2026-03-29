@@ -25,6 +25,7 @@ pub const Sieve = struct {
 
     /// Time: O(n * ln(ln(n))) where n = limit. Memory: O(n) bits.
     pub fn init(allocator: Allocator, limit: usize) !Sieve {
+        // We store only the odd numbers, so in principle we need limit / 2 bits.
         const size = blk: {
             if (limit <= 1) {
                 break :blk 0;
@@ -70,17 +71,48 @@ pub const Sieve = struct {
     fn mark(bitSet: anytype, limit: usize) void {
         var i: usize = 3;
         while (i * i < limit) : (i += 2) {
-            if (bitSet.isSet(i / 2 - 1)) {
+            if (bitSet.isSet(toBitIndex(i))) {
                 var j = i * i;
                 while (j < limit) : (j += 2 * i) {
-                    bitSet.unset(j / 2 - 1);
+                    bitSet.unset(toBitIndex(j));
                 }
             }
         }
     }
 
     fn check(bitSet: anytype, n: usize) bool {
-        return n >= 2 and (n == 2 or (n % 2 == 1 and bitSet.isSet(n / 2 - 1)));
+        return n >= 2 and (n == 2 or (n % 2 == 1 and bitSet.isSet(toBitIndex(n))));
+    }
+
+    inline fn toBitIndex(prime: usize) usize {
+        return prime / 2 - 1;
+    }
+
+    inline fn fromIndex(i: usize) usize {
+        const prime = i * 2 + 3;
+        return prime;
+    }
+
+    pub fn nextPrime(self: *const Sieve, n: usize) ?usize {
+        var iter = self.iterator();
+        while (iter.next()) |value| {
+            if (value > n) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    pub fn prevPrime(self: *const Sieve, n: usize) ?usize {
+        var iter = self.iterator();
+        var previous: ?usize = null;
+        while (iter.next()) |value| {
+            if (value >= n) {
+                return previous;
+            }
+            previous = value;
+        }
+        return null;
     }
 
     pub fn count(self: *const Sieve) usize {
@@ -104,7 +136,7 @@ pub const Sieve = struct {
                 return 2;
             }
             const bit_index = self.inner.next() orelse return null;
-            const prime = bit_index * 2 + 3;
+            const prime = fromIndex(bit_index);
             if (prime >= self.limit) return null;
             return prime;
         }
@@ -226,4 +258,33 @@ test "Sieve.count" {
         defer sieve.deinit();
         try std.testing.expectEqual(expected_primes.len, sieve.count());
     }
+}
+
+test "Sieve.nextPrime" {
+    const allocator = std.testing.allocator;
+    var sieve = try Sieve.init(allocator, 200);
+    defer sieve.deinit();
+    try std.testing.expectEqual(2, sieve.nextPrime(0));
+    try std.testing.expectEqual(2, sieve.nextPrime(1));
+    try std.testing.expectEqual(3, sieve.nextPrime(2));
+    try std.testing.expectEqual(5, sieve.nextPrime(3));
+    try std.testing.expectEqual(5, sieve.nextPrime(4));
+    try std.testing.expectEqual(7, sieve.nextPrime(5));
+    try std.testing.expectEqual(197, sieve.nextPrime(193));
+    try std.testing.expectEqual(null, sieve.nextPrime(199));
+}
+
+test "Sieve.prevPrime" {
+    const allocator = std.testing.allocator;
+    var sieve = try Sieve.init(allocator, 200);
+    defer sieve.deinit();
+    try std.testing.expectEqual(null, sieve.prevPrime(300));
+    try std.testing.expectEqual(197, sieve.prevPrime(199));
+    try std.testing.expectEqual(2, sieve.prevPrime(3));
+    try std.testing.expectEqual(3, sieve.prevPrime(4));
+    try std.testing.expectEqual(3, sieve.prevPrime(5));
+    try std.testing.expectEqual(191, sieve.prevPrime(193));
+    try std.testing.expectEqual(null, sieve.prevPrime(2));
+    try std.testing.expectEqual(null, sieve.prevPrime(1));
+    try std.testing.expectEqual(null, sieve.prevPrime(0));
 }
