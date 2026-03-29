@@ -44,13 +44,13 @@ pub const Sieve = struct {
 
     /// Time: O(1).
     pub fn isPrime(self: *const Sieve, n: usize) bool {
-        std.debug.assert(n < self.limit);
+        std.debug.assert(n <= self.limit);
         return check(&self.bitSet, n);
     }
 
     /// Compile-time sieve. The returned function checks primality in O(1).
     /// Memory: O(limit) bits, embedded in the binary.
-    pub fn comptime_(comptime limit: usize) *const fn(u64) bool {
+    pub fn comptime_(comptime limit: usize) *const fn(u64) SieveError!bool {
         @setEvalBranchQuota(limit);
         const S = struct {
             const primeBitSet = blk: {
@@ -58,8 +58,10 @@ pub const Sieve = struct {
                 mark(&bitSet, limit);
                 break :blk bitSet;
             };
-            fn isPrime(n: u64) bool {
-                if (n > limit) @panic("n exceeds comptime Sieve limit");
+            fn isPrime(n: u64) SieveError!bool {
+                if (n > limit) {
+                    return error.OutOfBand;
+                }
                 return check(&primeBitSet, @intCast(n));
             }
         };
@@ -70,10 +72,10 @@ pub const Sieve = struct {
     // the exception of 2.
     fn mark(bitSet: anytype, limit: usize) void {
         var i: usize = 3;
-        while (i * i < limit) : (i += 2) {
+        while (i * i <= limit) : (i += 2) {
             if (bitSet.isSet(toBitIndex(i))) {
                 var j = i * i;
-                while (j < limit) : (j += 2 * i) {
+                while (j <= limit) : (j += 2 * i) {
                     bitSet.unset(toBitIndex(j));
                 }
             }
@@ -93,17 +95,17 @@ pub const Sieve = struct {
         return prime;
     }
 
-    pub fn nextPrime(self: *const Sieve, n: usize) ?usize {
+    pub fn nextPrime(self: *const Sieve, n: usize) SieveError!usize {
         var iter = self.iterator();
         while (iter.next()) |value| {
             if (value > n) {
                 return value;
             }
         }
-        return null;
+        return error.OutOfBand;
     }
 
-    pub fn prevPrime(self: *const Sieve, n: usize) ?usize {
+    pub fn prevPrime(self: *const Sieve, n: usize) SieveError!?usize {
         var iter = self.iterator();
         var previous: ?usize = null;
         while (iter.next()) |value| {
@@ -112,7 +114,7 @@ pub const Sieve = struct {
             }
             previous = value;
         }
-        return null;
+        return error.OutOfBand;
     }
 
     pub fn count(self: *const Sieve) usize {
@@ -137,7 +139,7 @@ pub const Sieve = struct {
             }
             const bit_index = self.inner.next() orelse return null;
             const prime = fromIndex(bit_index);
-            if (prime >= self.limit) return null;
+            if (prime > self.limit) return null;
             return prime;
         }
     };
@@ -145,6 +147,10 @@ pub const Sieve = struct {
     pub fn iterator(self: *const Sieve) Iterator {
         return .{ .inner = self.bitSet.iterator(.{}), .limit = self.limit };
     }
+
+    pub const SieveError = error{
+        OutOfBand,
+    };
 };
 
 test isPrime {
@@ -180,13 +186,16 @@ test Sieve {
         } else false;
         try std.testing.expectEqual(expected, s.isPrime(n));
     }
+
+    const composites_at_limit = [_]usize{ 9, 25, 49, 121, 169 };
+    for (composites_at_limit) |limit| {
+        var sieve = try Sieve.init(allocator, limit);
+        defer sieve.deinit();
+        try std.testing.expect(!sieve.isPrime(limit));
+    }
 }
 
 test "Sieve.Iterator" {
-    const allocator = std.testing.allocator;
-    var s = try Sieve.init(allocator, 200);
-    defer s.deinit();
-
     const expected_primes = [_]u64{
         2,   3,   5,   7,   11,  13,  17,  19,  23,  29,
         31,  37,  41,  43,  47,  53,  59,  61,  67,  71,
@@ -195,11 +204,18 @@ test "Sieve.Iterator" {
         179, 181, 191, 193, 197, 199,
     };
 
-    var it = s.iterator();
-    for (expected_primes) |expected| {
-        try std.testing.expectEqual(expected, it.next());
+    const allocator = std.testing.allocator;
+    const limits = [_]u64{199, 200};
+    for (limits) |limit| {
+        var s = try Sieve.init(allocator, limit);
+        defer s.deinit();
+
+        var it = s.iterator();
+        for (expected_primes) |expected| {
+            try std.testing.expectEqual(expected, it.next());
+        }
+        try std.testing.expectEqual(null, it.next());
     }
-    try std.testing.expectEqual(null, it.next());
 }
 
 test "Sieve.comptime_" {
@@ -213,7 +229,7 @@ test "Sieve.comptime_" {
         179, 181, 191, 193, 197, 199,
     };
     for (expected_primes) |p| {
-        try std.testing.expect(sieveIsPrime(p));
+        try std.testing.expect(try sieveIsPrime(p));
     }
 
     for (0..200) |n| {
@@ -264,6 +280,7 @@ test "Sieve.nextPrime" {
     const allocator = std.testing.allocator;
     var sieve = try Sieve.init(allocator, 200);
     defer sieve.deinit();
+    const OutOfBand = Sieve.SieveError.OutOfBand;
     try std.testing.expectEqual(2, sieve.nextPrime(0));
     try std.testing.expectEqual(2, sieve.nextPrime(1));
     try std.testing.expectEqual(3, sieve.nextPrime(2));
@@ -271,14 +288,15 @@ test "Sieve.nextPrime" {
     try std.testing.expectEqual(5, sieve.nextPrime(4));
     try std.testing.expectEqual(7, sieve.nextPrime(5));
     try std.testing.expectEqual(197, sieve.nextPrime(193));
-    try std.testing.expectEqual(null, sieve.nextPrime(199));
+    try std.testing.expectEqual(OutOfBand, sieve.nextPrime(199));
 }
 
 test "Sieve.prevPrime" {
     const allocator = std.testing.allocator;
     var sieve = try Sieve.init(allocator, 200);
     defer sieve.deinit();
-    try std.testing.expectEqual(null, sieve.prevPrime(300));
+    const OutOfBand = Sieve.SieveError.OutOfBand;
+    try std.testing.expectEqual(OutOfBand, sieve.prevPrime(300));
     try std.testing.expectEqual(197, sieve.prevPrime(199));
     try std.testing.expectEqual(2, sieve.prevPrime(3));
     try std.testing.expectEqual(3, sieve.prevPrime(4));
