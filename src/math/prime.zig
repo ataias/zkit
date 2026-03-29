@@ -14,22 +14,29 @@ pub fn isPrime(n: u64) bool {
     return true;
 }
 
-pub fn comptimeSieve(comptime limit: usize) StaticBitSet(limit) {
-    var bitSet = StaticBitSet(limit).initFull();
+pub fn comptimeSieve(comptime limit: usize) *const fn(u64) bool {
+    @setEvalBranchQuota(limit);
+    const S = struct {
+        const primeBitSet = blk: {
+            var bitSet = StaticBitSet(limit / 2).initFull();
 
-    if (limit > 0) bitSet.unset(0);
-    if (limit > 1) bitSet.unset(1);
-
-    var i: usize = 2;
-    while (i * i < limit) : (i += 1) {
-        if (bitSet.isSet(i)) {
-            var j = i * i;
-            while (j < limit) : (j += i) {
-                bitSet.unset(j);
+            var i: usize = 3;
+            while (i * i < limit) : (i += 2) {
+                if (bitSet.isSet(i / 2 - 1)) {
+                    var j = i * i;
+                    while (j < limit) : (j += 2 * i) {
+                        bitSet.unset(j / 2 - 1);
+                    }
+                }
             }
+            break :blk bitSet;
+        };
+        fn isPrime(n: u64) bool {
+            if (n > limit) @panic("n exceeds comptimeSieve limit");
+            return n >= 2 and (n == 2 or (@rem(n, 2) == 1 and primeBitSet.isSet(n / 2 - 1)));
         }
-    }
-    return bitSet;
+    };
+    return S.isPrime;
 }
 
 pub fn sieve(allocator: Allocator, limit: usize) ![]bool {
@@ -79,14 +86,14 @@ test sieve {
 }
 
 test comptimeSieve {
-    const table = comptimeSieve(20);
+    const checkPrime = comptimeSieve(200);
 
     const expected_primes = [_]usize{ 2, 3, 5, 7, 11, 13, 17, 19 };
     for (expected_primes) |p| {
-        try std.testing.expect(table.isSet(p));
+        try std.testing.expect(checkPrime(p));
     }
-    try std.testing.expect(!table.isSet(0));
-    try std.testing.expect(!table.isSet(1));
-    try std.testing.expect(!table.isSet(4));
-    try std.testing.expect(!table.isSet(9));
+    try std.testing.expect(!checkPrime(0));
+    try std.testing.expect(!checkPrime(1));
+    try std.testing.expect(!checkPrime(4));
+    try std.testing.expect(!checkPrime(9));
 }
