@@ -1,5 +1,6 @@
 const std = @import("std");
 const StaticBitSet = std.StaticBitSet;
+const DynamicBitSet = std.DynamicBitSet;
 const Allocator = std.mem.Allocator;
 
 pub fn isPrime(n: u64) bool {
@@ -41,25 +42,35 @@ pub fn comptimeSieve(comptime limit: usize) *const fn(u64) bool {
     return S.isPrime;
 }
 
-pub fn sieve(allocator: Allocator, limit: usize) ![]bool {
-    const is_prime = try allocator.alloc(bool, limit);
-    errdefer allocator.free(is_prime);
+pub const Sieve = struct {
+    bitSet: DynamicBitSet,
+    limit: usize,
 
-    @memset(is_prime, true);
-    if (limit > 0) is_prime[0] = false;
-    if (limit > 1) is_prime[1] = false;
+    pub fn init(allocator: Allocator, limit: usize) !Sieve {
+        var bitSet = try DynamicBitSet.initFull(allocator, limit / 2);
+        errdefer bitSet.deinit();
 
-    var i: usize = 2;
-    while (i * i < limit) : (i += 1) {
-        if (is_prime[i]) {
-            var j = i * i;
-            while (j < limit) : (j += i) {
-                is_prime[j] = false;
+        var i: usize = 3;
+        while (i * i < limit) : (i += 2) {
+            if (bitSet.isSet(i / 2 - 1)) {
+                var j = i * i;
+                while (j < limit) : (j += 2 * i) {
+                    bitSet.unset(j / 2 - 1);
+                }
             }
         }
+        return .{ .bitSet = bitSet, .limit = limit };
     }
-    return is_prime;
-}
+
+    pub fn deinit(self: *Sieve) void {
+        self.bitSet.deinit();
+    }
+
+    pub fn isPrime(self: *const Sieve, n: usize) bool {
+        std.debug.assert(n < self.limit);
+        return n >= 2 and (n == 2 or (n % 2 == 1 and self.bitSet.isSet(n / 2 - 1)));
+    }
+};
 
 test isPrime {
     try std.testing.expect(!isPrime(0));
@@ -72,19 +83,28 @@ test isPrime {
     try std.testing.expect(!isPrime(100));
 }
 
-test sieve {
+test Sieve {
     const allocator = std.testing.allocator;
-    const table = try sieve(allocator, 20);
-    defer allocator.free(table);
+    var s = try Sieve.init(allocator, 200);
+    defer s.deinit();
 
-    const expected_primes = [_]usize{ 2, 3, 5, 7, 11, 13, 17, 19 };
+    const expected_primes = [_]usize{
+        2,   3,   5,   7,   11,  13,  17,  19,  23,  29,
+        31,  37,  41,  43,  47,  53,  59,  61,  67,  71,
+        73,  79,  83,  89,  97,  101, 103, 107, 109, 113,
+        127, 131, 137, 139, 149, 151, 157, 163, 167, 173,
+        179, 181, 191, 193, 197, 199,
+    };
     for (expected_primes) |p| {
-        try std.testing.expect(table[p]);
+        try std.testing.expect(s.isPrime(p));
     }
-    try std.testing.expect(!table[0]);
-    try std.testing.expect(!table[1]);
-    try std.testing.expect(!table[4]);
-    try std.testing.expect(!table[9]);
+
+    for (0..200) |n| {
+        const expected = for (expected_primes) |p| {
+            if (p == n) break true;
+        } else false;
+        try std.testing.expectEqual(expected, s.isPrime(n));
+    }
 }
 
 test comptimeSieve {
