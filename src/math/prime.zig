@@ -90,12 +90,21 @@ test sieve {
 test comptimeSieve {
     const checkPrime = comptimeSieve(200);
 
-    const expected_primes = [_]usize{ 2, 3, 5, 7, 11, 13, 17, 19 };
+    const expected_primes = [_]usize{
+        2,   3,   5,   7,   11,  13,  17,  19,  23,  29,
+        31,  37,  41,  43,  47,  53,  59,  61,  67,  71,
+        73,  79,  83,  89,  97,  101, 103, 107, 109, 113,
+        127, 131, 137, 139, 149, 151, 157, 163, 167, 173,
+        179, 181, 191, 193, 197, 199,
+    };
     for (expected_primes) |p| {
         try std.testing.expect(checkPrime(p));
     }
-    try std.testing.expect(!checkPrime(0));
-    try std.testing.expect(!checkPrime(1));
-    try std.testing.expect(!checkPrime(4));
-    try std.testing.expect(!checkPrime(9));
+
+    for (0..200) |n| {
+        const expected = for (expected_primes) |p| {
+            if (p == n) break true;
+        } else false;
+        try std.testing.expectEqual(expected, checkPrime(n));
+    }
 }
