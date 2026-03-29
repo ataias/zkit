@@ -7,4 +7,3 @@ test {
     _ = is_prime;
     _ = Sieve;
 }
-

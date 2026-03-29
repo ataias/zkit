@@ -64,7 +64,6 @@ test isPrime {
     }
 }
 
-
 /// Compile-time sieve. The returned function checks primality in O(1).
 /// Memory: O(limit) bits, embedded in the binary.
 pub fn comptimeMakeIsPrime(comptime limit: usize) *const fn (u64) SieveError!bool {
@@ -159,7 +158,6 @@ test nextPrime {
     try std.testing.expectEqual(OutOfBand, sieve.nextPrime(199));
 }
 
-
 pub fn prevPrime(self: *const @This(), n: usize) SieveError!?usize {
     var iter = self.iterator(.{});
     var previous: ?usize = null;
@@ -234,7 +232,6 @@ test count {
     }
 }
 
-
 pub const Iterator = struct {
     inner: DynamicBitSet.Iterator(.{}),
     limit: usize,
@@ -263,14 +260,18 @@ pub const Iterator = struct {
         return prime;
     }
 
-    pub const Options = struct{
+    pub const Options = struct {
         start: ?usize = null,
         stop: ?usize = null,
     };
 };
 
 pub fn iterator(self: *const @This(), options: Iterator.Options) Iterator {
-    return .{ .inner = self.bitSet.iterator(.{}), .limit = self.limit, .options = options, };
+    return .{
+        .inner = self.bitSet.iterator(.{}),
+        .limit = self.limit,
+        .options = options,
+    };
 }
 
 test iterator {
@@ -302,25 +303,25 @@ test iterator {
         var s = try init(allocator, 200);
         defer s.deinit();
         {
-            var it = s.iterator(.{.start = 80, .stop = 130});
-            const expected_range = [_]u64{83, 89, 97, 101, 103, 107, 109, 113, 127};
+            var it = s.iterator(.{ .start = 80, .stop = 130 });
+            const expected_range = [_]u64{ 83, 89, 97, 101, 103, 107, 109, 113, 127 };
             for (expected_range) |expected| {
                 try std.testing.expectEqual(expected, it.next());
             }
             try std.testing.expectEqual(null, it.next());
         }
         {
-            var it = s.iterator(.{.stop = 1});
+            var it = s.iterator(.{ .stop = 1 });
             try std.testing.expectEqual(null, it.next());
         }
         {
-            var it = s.iterator(.{.stop = 2});
+            var it = s.iterator(.{ .stop = 2 });
             try std.testing.expectEqual(2, it.next());
             try std.testing.expectEqual(null, it.next());
         }
         {
-            var it = s.iterator(.{.start = 190});
-            const expected_range = [_]u64{191, 193, 197, 199};
+            var it = s.iterator(.{ .start = 190 });
+            const expected_range = [_]u64{ 191, 193, 197, 199 };
             for (expected_range) |expected| {
                 try std.testing.expectEqual(expected, it.next());
             }
@@ -329,8 +330,6 @@ test iterator {
     }
 }
 
-
 pub const SieveError = error{
     OutOfBand,
 };
-
