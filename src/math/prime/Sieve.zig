@@ -135,7 +135,7 @@ inline fn fromIndex(i: usize) usize {
 }
 
 pub fn nextPrime(self: *const @This(), n: usize) SieveError!usize {
-    var iter = self.iterator();
+    var iter = self.iterator(.{});
     while (iter.next()) |value| {
         if (value > n) {
             return value;
@@ -161,7 +161,7 @@ test nextPrime {
 
 
 pub fn prevPrime(self: *const @This(), n: usize) SieveError!?usize {
-    var iter = self.iterator();
+    var iter = self.iterator(.{});
     var previous: ?usize = null;
     while (iter.next()) |value| {
         if (value >= n) {
@@ -239,21 +239,38 @@ pub const Iterator = struct {
     inner: DynamicBitSet.Iterator(.{}),
     limit: usize,
     yielded_two: bool = false,
+    options: Options,
 
     pub fn next(self: *Iterator) ?u64 {
+        const start = self.options.start;
+        const stop = self.options.stop;
         if (!self.yielded_two) {
             self.yielded_two = true;
-            return 2;
+            if (stop != null and stop.? < 2) {
+                return null;
+            }
+            if (start == null or start.? <= 2) {
+                return 2;
+            }
         }
-        const bit_index = self.inner.next() orelse return null;
-        const prime = fromIndex(bit_index);
-        if (prime > self.limit) return null;
+        var bit_index = self.inner.next() orelse return null;
+        var prime = fromIndex(bit_index);
+        while (start != null and prime < start.?) {
+            bit_index = self.inner.next() orelse return null;
+            prime = fromIndex(bit_index);
+        }
+        if (prime > self.limit or (stop != null and prime > stop.?)) return null;
         return prime;
     }
+
+    pub const Options = struct{
+        start: ?usize = null,
+        stop: ?usize = null,
+    };
 };
 
-pub fn iterator(self: *const @This()) Iterator {
-    return .{ .inner = self.bitSet.iterator(.{}), .limit = self.limit };
+pub fn iterator(self: *const @This(), options: Iterator.Options) Iterator {
+    return .{ .inner = self.bitSet.iterator(.{}), .limit = self.limit, .options = options, };
 }
 
 test iterator {
@@ -266,16 +283,49 @@ test iterator {
     };
 
     const allocator = std.testing.allocator;
-    const limits = [_]u64{ 199, 200 };
-    for (limits) |limit| {
-        var s = try init(allocator, limit);
-        defer s.deinit();
+    // Default options
+    {
+        const limits = [_]u64{ 199, 200 };
+        for (limits) |limit| {
+            var s = try init(allocator, limit);
+            defer s.deinit();
 
-        var it = s.iterator();
-        for (expected_primes) |expected| {
-            try std.testing.expectEqual(expected, it.next());
+            var it = s.iterator(.{});
+            for (expected_primes) |expected| {
+                try std.testing.expectEqual(expected, it.next());
+            }
+            try std.testing.expectEqual(null, it.next());
         }
-        try std.testing.expectEqual(null, it.next());
+    }
+    // Ranges
+    {
+        var s = try init(allocator, 200);
+        defer s.deinit();
+        {
+            var it = s.iterator(.{.start = 80, .stop = 130});
+            const expected_range = [_]u64{83, 89, 97, 101, 103, 107, 109, 113, 127};
+            for (expected_range) |expected| {
+                try std.testing.expectEqual(expected, it.next());
+            }
+            try std.testing.expectEqual(null, it.next());
+        }
+        {
+            var it = s.iterator(.{.stop = 1});
+            try std.testing.expectEqual(null, it.next());
+        }
+        {
+            var it = s.iterator(.{.stop = 2});
+            try std.testing.expectEqual(2, it.next());
+            try std.testing.expectEqual(null, it.next());
+        }
+        {
+            var it = s.iterator(.{.start = 190});
+            const expected_range = [_]u64{191, 193, 197, 199};
+            for (expected_range) |expected| {
+                try std.testing.expectEqual(expected, it.next());
+            }
+            try std.testing.expectEqual(null, it.next());
+        }
     }
 }
 
