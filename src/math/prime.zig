@@ -20,6 +20,8 @@ pub fn comptimeSieve(comptime limit: usize) *const fn(u64) bool {
         const primeBitSet = blk: {
             var bitSet = StaticBitSet(limit / 2).initFull();
 
+            // We only store odd numbers, as even numbers are not prime, with
+            // the exception of 2.
             var i: usize = 3;
             while (i * i < limit) : (i += 2) {
                 if (bitSet.isSet(i / 2 - 1)) {
