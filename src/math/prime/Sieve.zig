@@ -1,5 +1,5 @@
-/// Sieve of Eratosthenes for prime checking.
-/// Memory: O(limit) bits.
+//! Sieve of Eratosthenes for prime checking.
+//! Memory: O(limit) bits.
 const std = @import("std");
 const StaticBitSet = std.StaticBitSet;
 const DynamicBitSet = std.DynamicBitSet;
