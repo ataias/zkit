@@ -25,7 +25,13 @@ pub const Sieve = struct {
 
     /// Time: O(n * ln(ln(n))) where n = limit. Memory: O(n) bits.
     pub fn init(allocator: Allocator, limit: usize) !Sieve {
-        var bitSet = try DynamicBitSet.initFull(allocator, limit / 2);
+        const size = blk: {
+            if (limit <= 1) {
+                break :blk 0;
+            }
+            break :blk if (@rem(limit, 2) == 0) limit / 2 - 1 else limit / 2;
+        };
+        var bitSet = try DynamicBitSet.initFull(allocator, size);
         errdefer bitSet.deinit();
         mark(&bitSet, limit);
         return .{ .bitSet = bitSet, .limit = limit };
@@ -75,6 +81,16 @@ pub const Sieve = struct {
 
     fn check(bitSet: anytype, n: usize) bool {
         return n >= 2 and (n == 2 or (n % 2 == 1 and bitSet.isSet(n / 2 - 1)));
+    }
+
+    pub fn count(self: *const Sieve) usize {
+        if (self.limit <= 1) {
+            return 0;
+        }
+        if (self.limit == 2) {
+            return 1;
+        }
+        return 1 + self.bitSet.count();
     }
 
     pub const Iterator = struct {
@@ -173,5 +189,41 @@ test "Sieve.comptime_" {
             if (p == n) break true;
         } else false;
         try std.testing.expectEqual(expected, sieveIsPrime(n));
+    }
+}
+
+test "Sieve.count" {
+    const allocator = std.testing.allocator;
+    {
+        var sieve = try Sieve.init(allocator, 0);
+        defer sieve.deinit();
+        try std.testing.expectEqual(0, sieve.count());
+    }
+    {
+        var sieve = try Sieve.init(allocator, 1);
+        defer sieve.deinit();
+        try std.testing.expectEqual(0, sieve.count());
+    }
+    const expected_primes = [_]usize{
+        2,   3,   5,   7,   11,  13,  17,  19,  23,  29,
+        31,  37,  41,  43,  47,  53,  59,  61,  67,  71,
+        73,  79,  83,  89,  97,  101, 103, 107, 109, 113,
+        127, 131, 137, 139, 149, 151, 157, 163, 167, 173,
+        179, 181, 191, 193, 197, 199,
+    };
+    for (0..expected_primes.len) |i| {
+        var sieve = try Sieve.init(allocator, expected_primes[i]);
+        defer sieve.deinit();
+        try std.testing.expectEqual(i+1, sieve.count());
+    }
+    {
+        var sieve = try Sieve.init(allocator, 4);
+        defer sieve.deinit();
+        try std.testing.expectEqual(2, sieve.count());
+    }
+    {
+        var sieve = try Sieve.init(allocator, 200);
+        defer sieve.deinit();
+        try std.testing.expectEqual(expected_primes.len, sieve.count());
     }
 }
