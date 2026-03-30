@@ -390,18 +390,18 @@ test primeFactors {
     {
         const n = 3 * 5 * 7;
         var it = s.primeFactors(n);
-        try std.testing.expectEqual(PrimeFactor{.base = 3, .exp = 1}, it.next());
-        try std.testing.expectEqual(PrimeFactor{.base = 5, .exp = 1}, it.next());
-        try std.testing.expectEqual(PrimeFactor{.base = 7, .exp = 1}, it.next());
+        try std.testing.expectEqual(PrimeFactor{ .base = 3, .exp = 1 }, it.next());
+        try std.testing.expectEqual(PrimeFactor{ .base = 5, .exp = 1 }, it.next());
+        try std.testing.expectEqual(PrimeFactor{ .base = 7, .exp = 1 }, it.next());
         try std.testing.expectEqual(null, it.next());
     }
 
     {
         const n = 3 * 3 * 5 * 5 * 5 * 199 * 199 * 199 * 199;
         var it = s.primeFactors(n);
-        try std.testing.expectEqual(PrimeFactor{.base = 3, .exp = 2}, it.next());
-        try std.testing.expectEqual(PrimeFactor{.base = 5, .exp = 3}, it.next());
-        try std.testing.expectEqual(PrimeFactor{.base = 199, .exp = 4}, it.next());
+        try std.testing.expectEqual(PrimeFactor{ .base = 3, .exp = 2 }, it.next());
+        try std.testing.expectEqual(PrimeFactor{ .base = 5, .exp = 3 }, it.next());
+        try std.testing.expectEqual(PrimeFactor{ .base = 199, .exp = 4 }, it.next());
         try std.testing.expectEqual(null, it.next());
     }
 
@@ -418,7 +418,7 @@ test primeFactors {
         defer superSieve.deinit();
         const n = 294887; // prime number, outside our range
         var it = superSieve.primeFactors(n);
-        try std.testing.expectEqual(PrimeFactor{.base = 294887, .exp = 1}, it.next());
+        try std.testing.expectEqual(PrimeFactor{ .base = 294887, .exp = 1 }, it.next());
         try std.testing.expectEqual(null, it.next());
     }
 }
