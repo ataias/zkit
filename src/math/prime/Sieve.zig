@@ -333,3 +333,117 @@ test iterator {
 pub const SieveError = error{
     OutOfBand,
 };
+
+pub const PrimeFactor = struct {
+    base: u64,
+    exp: u64,
+};
+
+pub const PrimeFactorIterator = struct {
+    n: u64,
+    iter: Iterator,
+
+    pub fn next(self: *PrimeFactorIterator) SieveError!?PrimeFactor {
+        if (self.n <= 1) return null;
+        const p = self.smallestFactor() orelse {
+            if (self.n > 1) {
+                return SieveError.OutOfBand;
+            }
+            return null;
+        };
+        var exp: u64 = 0;
+        while (self.n % p == 0) {
+            self.n /= p;
+            exp += 1;
+        }
+        return .{ .base = p, .exp = exp };
+    }
+
+    fn smallestFactor(self: *PrimeFactorIterator) ?u64 {
+        while (self.iter.next()) |value| {
+            if (@rem(self.n, value) == 0) {
+                return value;
+            }
+        }
+        return null;
+    }
+};
+
+pub fn primeFactors(self: *const @This(), n: u64) PrimeFactorIterator {
+    const iter = self.iterator(.{});
+    return .{ .n = n, .iter = iter };
+}
+
+test primeFactors {
+    // const expected_primes = [_]u64{
+    //     2,   3,   5,   7,   11,  13,  17,  19,  23,  29,
+    //     31,  37,  41,  43,  47,  53,  59,  61,  67,  71,
+    //     73,  79,  83,  89,  97,  101, 103, 107, 109, 113,
+    //     127, 131, 137, 139, 149, 151, 157, 163, 167, 173,
+    //     179, 181, 191, 193, 197, 199,
+    // };
+
+    const allocator = std.testing.allocator;
+    var s = try init(allocator, 200);
+    defer s.deinit();
+
+    {
+        const n = 3 * 5 * 7;
+        var it = s.primeFactors(n);
+        try std.testing.expectEqual(PrimeFactor{.base = 3, .exp = 1}, it.next());
+        try std.testing.expectEqual(PrimeFactor{.base = 5, .exp = 1}, it.next());
+        try std.testing.expectEqual(PrimeFactor{.base = 7, .exp = 1}, it.next());
+        try std.testing.expectEqual(null, it.next());
+    }
+
+    {
+        const n = 3 * 3 * 5 * 5 * 5 * 199 * 199 * 199 * 199;
+        var it = s.primeFactors(n);
+        try std.testing.expectEqual(PrimeFactor{.base = 3, .exp = 2}, it.next());
+        try std.testing.expectEqual(PrimeFactor{.base = 5, .exp = 3}, it.next());
+        try std.testing.expectEqual(PrimeFactor{.base = 199, .exp = 4}, it.next());
+        try std.testing.expectEqual(null, it.next());
+    }
+
+    {
+        const n = 294887; // prime number, outside our range
+        var it = s.primeFactors(n);
+        try std.testing.expectEqual(SieveError.OutOfBand, it.next());
+        try std.testing.expectEqual(SieveError.OutOfBand, it.next());
+    }
+
+    {
+        // works with a bigger sieve
+        var superSieve = try init(allocator, 500_000);
+        defer superSieve.deinit();
+        const n = 294887; // prime number, outside our range
+        var it = superSieve.primeFactors(n);
+        try std.testing.expectEqual(PrimeFactor{.base = 294887, .exp = 1}, it.next());
+        try std.testing.expectEqual(null, it.next());
+    }
+}
+
+test fuzzPrimeFactors {
+    try std.testing.fuzz({}, fuzzPrimeFactors, .{});
+}
+
+fn fuzzPrimeFactors(context: void, smith: *std.testing.Smith) !void {
+    _ = context;
+    const limit = 10_000;
+    const allocator = std.testing.allocator;
+    var s = try init(allocator, limit);
+    defer s.deinit();
+
+    const n = smith.valueRangeAtMost(u64, 2, 10_000);
+    errdefer std.debug.print("failing n = {}\n", .{n});
+    var it = s.primeFactors(n);
+
+    var product: u64 = 1;
+    while (try it.next()) |factor| {
+        product = product * std.math.pow(u64, factor.base, factor.exp);
+        try std.testing.expect(factor.base <= limit);
+        try std.testing.expect(factor.exp >= 1);
+    }
+
+    try std.testing.expectEqual(n, product);
+}
