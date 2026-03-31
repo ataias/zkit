@@ -16,15 +16,15 @@
 const std = @import("std");
 const expectEqual = std.testing.expectEqual;
 
-pub fn sumSquareDifference(limit: u64) u64 {
-    var sum_of_squares: u64 = 0;
-    for (1..limit+1) |i| {
-        sum_of_squares += i * i;
-    }
-    const sum = (1 + limit)*limit / 2;
+pub fn sumSquareDifference(n: u64) u64 {
+    // Faulhaber's formula
+    // https://en.wikipedia.org/wiki/Faulhaber%27s_formula
+    const sum = (1 + n) * n / 2;
+    const sum_of_squares = n * (n + 1) * (2 * n + 1) / 6;
     return sum * sum - sum_of_squares;
 }
 
 test sumSquareDifference {
     try expectEqual(2640, sumSquareDifference(10));
+    try expectEqual(25_164_150, sumSquareDifference(100));
 }

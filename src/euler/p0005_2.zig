@@ -15,12 +15,11 @@ const std = @import("std");
 // Then we need to iterate that for more numbers with lcm(a, b, c) = lcm(lcm(a, b), c)
 pub fn smallestNumberDivisibleUpTo(limit: u64) u64 {
     var result: u64 = 1;
-    for (1..limit+1) |i| {
+    for (1..limit + 1) |i| {
         result = std.math.lcm(result, i);
     }
     return result;
 }
-
 
 test smallestNumberDivisibleUpTo {
     const limits = [_]u64{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20 };
