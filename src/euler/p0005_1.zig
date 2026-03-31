@@ -13,6 +13,11 @@ const Sieve = prime.Sieve;
 const PrimeFactor = Sieve.PrimeFactor;
 const maxDistinctPrimeFactors = prime.maxDistinctPrimeFactors;
 
+// This was the first solution I came up with. I just thought: this would be
+// much easier if I factor the numbers. It was not particularly easy though,
+// given that I ended up creating a micro Sieve lib for that, but it is a great
+// learning exercise to get up to speed with Zig. It was nice learning about
+// iterators and error handling.
 pub fn smallestNumberDivisibleUpTo(sieve: *const Sieve, limit: u64) Sieve.SieveError!u64 {
     var factors: [maxDistinctPrimeFactors(u64)]PrimeFactor = undefined;
     var factors_count: u64 = 0;
