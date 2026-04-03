@@ -31,4 +31,3 @@ test getPrimeAtIndex {
     try expectEqual(7727, getPrimeAtIndex(&sieve, 980));
     try expectEqual(104_743, getPrimeAtIndex(&sieve, 10000));
 }
-
