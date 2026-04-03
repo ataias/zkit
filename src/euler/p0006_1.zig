@@ -16,6 +16,10 @@
 const std = @import("std");
 const expectEqual = std.testing.expectEqual;
 
+pub fn main() void {
+    std.debug.print("sumSquareDifference(100) = {d}\n", .{sumSquareDifference(100)});
+}
+
 pub fn sumSquareDifference(n: u64) u64 {
     // Faulhaber's formula
     // https://en.wikipedia.org/wiki/Faulhaber%27s_formula

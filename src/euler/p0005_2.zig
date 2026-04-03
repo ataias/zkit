@@ -8,6 +8,10 @@
 //! remainder</span></strong> by all of the numbers from $1$ to $20$?</p>
 const std = @import("std");
 
+pub fn main() void {
+    std.debug.print("smallestNumberDivisibleUpTo(20) = {d}\n", .{smallestNumberDivisibleUpTo(20)});
+}
+
 // A way to interpret the problem is understanding that it asks for the Least
 // Common Multiple between the numbers.
 //

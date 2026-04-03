@@ -8,10 +8,17 @@
 //! remainder</span></strong> by all of the numbers from $1$ to $20$?</p>
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const prime = @import("../math/prime/prime.zig");
+const prime = @import("zkit").math.prime;
 const Sieve = prime.Sieve;
 const PrimeFactor = Sieve.PrimeFactor;
 const maxDistinctPrimeFactors = prime.maxDistinctPrimeFactors;
+
+pub fn main() !void {
+    var sieve = try Sieve.init(std.heap.page_allocator, 200);
+    defer sieve.deinit();
+    const result = try smallestNumberDivisibleUpTo(&sieve, 20);
+    std.debug.print("smallestNumberDivisibleUpTo(20) = {d}\n", .{result});
+}
 
 // This was the first solution I came up with. I just thought: this would be
 // much easier if I factor the numbers. It was not particularly easy though,

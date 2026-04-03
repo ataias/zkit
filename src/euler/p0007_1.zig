@@ -6,8 +6,16 @@
 //! <p>What is the $10\,001$st prime number?</p>
 
 const std = @import("std");
-const Sieve = @import("../math/prime/Sieve.zig");
+const Sieve = @import("zkit").math.prime.Sieve;
 const expectEqual = std.testing.expectEqual;
+
+pub fn main() !void {
+    var sieve = try Sieve.init(std.heap.page_allocator, 1_000_000);
+    defer sieve.deinit();
+    if (getPrimeAtIndex(&sieve, 10000)) |result| {
+        std.debug.print("getPrimeAtIndex(10000) = {d}\n", .{result});
+    }
+}
 
 pub fn getPrimeAtIndex(sieve: *const Sieve, target_index: u64) ?u64 {
     var it = sieve.iterator(.{});

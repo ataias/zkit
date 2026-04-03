@@ -3,6 +3,10 @@
 //! <p>Find the sum of all the multiples of $3$ or $5$ below $1000$.</p>
 const std = @import("std");
 
+pub fn main() void {
+    std.debug.print("multiples(1000) = {d}\n", .{multiples(1000)});
+}
+
 pub fn multiples(limit: u64) u64 {
     var sum: u64 = 0;
     for (1..limit) |i| {
