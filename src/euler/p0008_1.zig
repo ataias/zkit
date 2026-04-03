@@ -64,14 +64,20 @@ pub fn getGreatestProductWithDigits(digits: u64) u64 {
             max_index = i;
         }
     }
-    for (n[max_index..max_index+digits], 0..) |value, i| {
+    // logProductSlice(n[max_index..max_index+digits]);
+    return max_product;
+}
+
+fn logProductSlice(n: []const u64) void {
+    var product: u64 = 1;
+    for (n, 0..) |value, i| {
         std.debug.print("{}", .{value});
-        if (i + 1 < digits) {
+        if (i + 1 < n.len) {
             std.debug.print(" * ", .{});
         }
+        product *= value;
     }
-    std.debug.print(" = {}\n", .{max_product});
-    return max_product;
+    std.debug.print(" = {}\n", .{product});
 }
 
 test getGreatestProductWithDigits {
