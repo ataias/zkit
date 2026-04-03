@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+
+if ! zig fmt --check src/ build.zig 2>&1; then
+    echo "zig fmt check failed. Run 'zig fmt src/ build.zig' to fix."
+    exit 1
+fi
