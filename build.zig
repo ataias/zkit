@@ -41,4 +41,19 @@ pub fn build(b: *std.Build) void {
         const euler_test = b.addTest(.{ .root_module = euler_mod });
         test_step.dependOn(&b.addRunArtifact(euler_test).step);
     }
+
+    const add_euler_mod = b.addModule("add-euler", .{
+        .root_source_file = b.path("src/tools/add_euler.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const add_euler_exe = b.addExecutable(.{
+        .name = "add-euler",
+        .root_module = add_euler_mod,
+    });
+    b.installArtifact(add_euler_exe);
+    const add_euler_run = b.addRunArtifact(add_euler_exe);
+    if (b.args) |args| add_euler_run.addArgs(args);
+    const add_euler_step = b.step("add-euler", "Add a new Euler problem");
+    add_euler_step.dependOn(&add_euler_run.step);
 }
